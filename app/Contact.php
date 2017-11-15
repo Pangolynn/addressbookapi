@@ -11,6 +11,15 @@ class Contact extends Model
         'name', 'email', 'phone_number'
     ];
 
+    /**
+     * The attributes that should be hidden for arrays.
+     *
+     * @var array
+     */
+    protected $hidden = [
+        'user_id'
+    ];
+
     public function user()
     {
         return $this->belongsTo('App\User');

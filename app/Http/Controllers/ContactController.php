@@ -2,17 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Contact;
 use Auth;
+
+use Illuminate\Http\Request;
+
+use App\Http\Requests\UpdateContact;
+use App\Http\Requests\StoreContact;
+
+use App\Contact;
 use App\User;
+use JWTAuth;
+
 
 class ContactController extends Controller
 {
     public function __construct()
     {
-        // This middleware applies to all actions.
-        // $this->middleware('name');
+        $this->middleware('jwt.auth');
     }
 
     /**
@@ -22,8 +28,10 @@ class ContactController extends Controller
      */
     public function index()
     {
-        $contacts = Contact::all();
-
+        $user = $this->getAuthenticatedUser()->getData();
+        $user_id = $user->id;
+        $contacts = User::findOrFail($user_id)->contacts;
+        
         foreach ($contacts as $contact) {
             // Add property to each contact with 
             // the correct url to view them
@@ -47,41 +55,38 @@ class ContactController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(StoreContact $request)
     {
-        $this->validate($request, [
-            'name' => 'required'
-        ]);
-
         $name = $request->input('name');
         $phone_number= $request->input('phone_number');
         $email= $request->input('email');
 
-        $user = User::find(1);
+        $user = $this->getAuthenticatedUser()->getData();
+        $user_id = $user->id;
 
+        $user = User::findOrFail($user_id);
+        
         $contact = new Contact([
             'name' => $name,
             'phone_number' => $phone_number,
             'email' => $email,
         ]);
 
+        if($user->contacts()->save($contact)) {
+            $contact->view_contact = [
+                'href' => 'api/v1/contact/' . $contact->id,
+                'method' => 'GET'
+            ];
 
-        if($user) {
-            if($user->contacts()->save($contact)) {
-                $contact->view_contact = [
-                    'href' => 'api/v1/contact/' . $contact->id,
-                    'method' => 'GET'
-                ];
-
-                $message = [
-                    'msg' => 'Contact created!',
-                    'contact' => $contact
-                ];
+            $message = [
+                'msg' => 'Contact created!',
+                'contact' => $contact
+            ];
 
 
-                return response()->json($message, 201);
-            }
+            return response()->json($message, 201);
         }
+
         $response = [
             'msg' => 'An error occured during contact creation.',
         ];
@@ -97,7 +102,9 @@ class ContactController extends Controller
      */
     public function show($id)
     {
-        $contact = Contact::findOrFail($id);
+        $user = $this->getAuthenticatedUser()->getData();
+        $user_id = $user->id;
+        $contact = User::findOrFail($user_id)->contacts()->where('id', $id)->firstOrFail();
 
         $response = [
             'msg' => 'Contact information',
@@ -114,23 +121,15 @@ class ContactController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(UpdateContact $request, $id)
     {
-        $this->validate($request, [
-            'name' => 'required'
-        ]);
-
         $name = $request->input('name');
         $phone_number= $request->input('phone_number');
         $email= $request->input('email');
-        $user_id = $request->input('user_id');
-
-        $contact = Contact::findOrFail($id);
-
-        // Check if user owns contact
-        if($contact->user->id != $user_id) {
-            return response()->json(['msg' => 'contact does not belong to user'], 401);
-        }
+        
+        $user = $this->getAuthenticatedUser()->getData();
+        $user_id = $user->id;
+        $contact = User::findOrFail($user_id)->contacts()->where('id', $id)->firstOrFail();
 
         $contact->name = $name;
         $contact->phone_number = $phone_number;
@@ -161,9 +160,15 @@ class ContactController extends Controller
      */
     public function destroy($id)
     {
-        // TODO: Make sure to check if user owns contact
-
         $contact = Contact::findOrFail($id);
+
+        $user = $this->getAuthenticatedUser()->getData();
+        $user_id = $user->id;
+
+        // Check if contact belongs to user.
+        if($contact->user->id != $user_id) {
+            return response()->json(['msg' => 'Contact does not belong to user'], 401);
+        }
 
         if(!$contact->delete()) {
             return response()->json(['msg' => 'Delete failed'], 404);
@@ -180,4 +185,27 @@ class ContactController extends Controller
 
         return response()->json($response, 200);
     }
+
+    /**
+     * The name says it all
+     * @return \Illuminate\Http\Response
+     */
+    public function getAuthenticatedUser()
+    {
+        try {
+            if(! $user = JWTAuth::parseToken()->authenticate()) {
+                return response()->json(['user_not_found'], 404);
+            }
+        } catch (Tymon\JWTAuth\Exceptions\TokenExpiredException $e) {
+            return response()->json(['token_expired'], $e->getStatusCode());
+        } catch (Tymon\JWTAuth\Exceptions\TokenInvalidException $e) {
+            return response()->json(['token_invalid'], $e->getStatusCode());
+        } catch (Tymon\JWTAuth\Exceptions\JWTException $e) {
+            return response()->json(['token_absent'], $e->getStatusCode());
+        }
+
+        // token is valid, found user via sub claim
+        return response()->json($user, 200);
+    }
+
 }
