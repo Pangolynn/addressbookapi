@@ -226,6 +226,7 @@ return [
         'Validator' => Illuminate\Support\Facades\Validator::class,
         'View' => Illuminate\Support\Facades\View::class,
         'JWTAuth' => Tymon\JWTAuth\Facades\LaravelServiceProvider::class,
+        'Result' => \App\Services\ResultService::class,
 
     ],
 

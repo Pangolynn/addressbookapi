@@ -12,6 +12,7 @@ use App\Http\Requests\StoreContact;
 use App\Contact;
 use App\User;
 use JWTAuth;
+use Result;
 
 
 class ContactController extends Controller
@@ -46,7 +47,9 @@ class ContactController extends Controller
             'contacts' => $contacts
         ];
 
-        return response()->json($response, 200);
+        // return response()->json($response, 200);
+
+        return Result::build(true, 1, $response);
     }
 
     /**
@@ -111,7 +114,9 @@ class ContactController extends Controller
             'contact' => $contact
         ];
 
-        return response()->json($response, 200);
+        // return response()->json($response, 200);
+
+        return Result::build(true, 1, $response);
     }
 
     /**

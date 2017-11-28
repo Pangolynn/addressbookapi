@@ -13,7 +13,6 @@ class StoreContact extends FormRequest
      */
     public function authorize()
     {
-        // TODO: Get user auth
         return true;
     }
 

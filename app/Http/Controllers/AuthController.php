@@ -8,12 +8,15 @@ use App\Http\Requests\StoreUser;
 
 use App\User;
 
+use Result;
+
 class AuthController extends Controller
 {
     public function __construct() 
     {
         $this->middleware('auth:api', ['except' => ['signin', 'store']]);
     }
+
     public function store(StoreUser $request) 
     {
         $name = $request->input('name');
@@ -39,6 +42,8 @@ class AuthController extends Controller
                 'user' => $user
             ];
 
+
+            
             return response()->json($response, 201);
         }
 
@@ -64,10 +69,14 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
 
         if ($token = $this->guard()->attempt($credentials)) {
-            return $this->respondWithToken($token);
+            // return $this->respondWithToken($token);
+
+            return Result::build(true, 1, $this->respondWithToken($token));
         }
 
-        return response()->json(['error' =>'Unauthorized'], 401);
+        // return response()->json(['error' =>'Unauthorized'], 401);
+
+        return Result::build(true, 2, ErrorCode::$authentication);
     }
 
     /**
